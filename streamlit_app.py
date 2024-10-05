@@ -17,6 +17,25 @@ SEARCH_URLS = [
     'https://suumo.jp/jj/chintai/ichiran/FR301FC001/?ar=030&bs=040&fw2=&pc=30&po1=25&po2=99&ra=013&rn=0240&rn=0190&ek=024015920&ek=019035780&ek=019034330&ek=019040190&md=07&cb=10.0&ct=14.0&et=15&mb=50&mt=9999999&cn=20&rsnflg=1&co=1&tc=0400101&tc=0400501&tc=0400601&tc=0400301&tc=0400302&tc=0400902&tc=0400912&shkr1=03&shkr2=03&shkr3=03&shkr4=03'
 ]
 
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import os
+import json
+from datetime import datetime
+import folium
+from streamlit_folium import st_folium
+from geopy.geocoders import Nominatim
+import streamlit as st
+
+# 検索URLのリスト（複数の検索URLを指定）
+SEARCH_URLS = [
+    'https://suumo.jp/jj/chintai/ichiran/FR301FC001/?ar=030&bs=040&fw2=&pc=30&po1=25&po2=99&ra=014&rn=0185&ek=018503240&ek=018537650&ek=018534560&ek=018542410&ek=018540200&ek=018539710&ek=018528700&ek=018523100&ek=018509920&ek=018538720&ek=018538800&ek=018538760&ek=018538860&ek=018524790&ek=018512560&ek=018518510&ek=018530130&ek=018527340&ek=018503300&md=07&cb=10.0&ct=14.0&et=10&mb=50&mt=9999999&cn=20&ae=01851&co=1&tc=0400101&tc=0400501&tc=0400601&tc=0400301&tc=0400912&shkr1=03&shkr2=03&shkr3=03&shkr4=03',
+    'https://suumo.jp/jj/chintai/ichiran/FR301FC001/?fw2=&ae=02301&ek=023017640&ek=023002000&ek=023016720&ek=023015340&ek=023016140&ek=023040800&ek=023034230&ek=023024700&ek=023037790&ek=023034220&ek=023022390&ek=023036850&ek=023007890&ek=023038250&ek=023038350&ek=023000820&ek=023000210&ek=023027240&ek=023024340&mt=9999999&cn=20&co=1&ra=014&et=15&tc=0400101&tc=0400501&tc=0400502&tc=0400601&tc=0400301&tc=0400302&tc=0400912&shkr1=03&ar=030&bs=040&ct=14.0&shkr3=03&shkr2=03&mb=50&md=07&rn=0230&shkr4=03&cb=10.0',
+    'https://suumo.jp/jj/chintai/ichiran/FR301FC001/?ar=030&bs=040&fw2=&pc=30&po1=25&po2=99&ra=013&rn=0240&rn=0190&ek=024015920&ek=019035780&ek=019034330&ek=019040190&md=07&cb=10.0&ct=14.0&et=15&mb=50&mt=9999999&cn=20&rsnflg=1&co=1&tc=0400101&tc=0400501&tc=0400601&tc=0400301&tc=0400302&tc=0400902&tc=0400912&shkr1=03&shkr2=03&shkr3=03&shkr4=03'
+]
+
 # ファイル名の対応リスト
 FILE_NAMES = [
     '南武線.json',
@@ -86,6 +105,14 @@ def save_to_json(data, file_path):
     # 名前に含まれる「☆」「-」を削除
     if not old_df.empty and '名前' in old_df.columns:
         old_df['名前'] = old_df['名前'].str.replace('☆', '', regex=False).str.replace('-', '', regex=False)
+
+    # 削除された物件を特定
+    if not old_df.empty:
+        merged_df = pd.merge(old_df, new_df, how='outer', on=['価格', '所在地', '間取り', '専有面積', '築年数', 'URL'], indicator=True)
+        removed_properties = merged_df[merged_df['_merge'] == 'left_only']
+        if not removed_properties.empty:
+            st.write("削除された物件情報:")
+            st.dataframe(removed_properties[['名前', '価格', '所在地', '間取り', '専有面積', '築年数', 'URL']])
 
     # 新しいデータをファイルに保存
     final_df = pd.concat([old_df, new_df], ignore_index=True)
