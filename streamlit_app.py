@@ -17,6 +17,13 @@ SEARCH_URLS = [
     'https://suumo.jp/jj/chintai/ichiran/FR301FC001/?ar=030&bs=040&fw2=&pc=30&po1=25&po2=99&ra=013&rn=0240&rn=0190&ek=024015920&ek=019035780&ek=019034330&ek=019040190&md=07&cb=10.0&ct=14.0&et=15&mb=50&mt=9999999&cn=20&rsnflg=1&co=1&tc=0400101&tc=0400501&tc=0400601&tc=0400301&tc=0400302&tc=0400902&tc=0400912&shkr1=03&shkr2=03&shkr3=03&shkr4=03'
 ]
 
+# ファイル名の対応リスト
+FILE_NAMES = [
+    '南武線.json',
+    '田園都市線.json',
+    '町田周辺.json'
+]
+
 # データ取得関数
 def fetch_suumo_data(search_url):
     listings = []
@@ -88,23 +95,21 @@ def save_to_json(data, file_path):
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(final_df.to_dict(orient='records'), file, ensure_ascii=False, indent=4)
 
-# 住所から緯度経度を取得する関数
-def get_lat_lon(address):
-    geolocator = Nominatim(user_agent="property_locator")
-    try:
-        location = geolocator.geocode(address)
-        if location:
-            return location.latitude, location.longitude
-    except Exception as e:
-        print(f"Error retrieving location for {address}: {e}")
-    return None, None
-
 # Streamlitアプリケーションの設定
-st.title('SUUMO物件情報閲覧アプリ')
+st.title('スーパー☆SUUMO君')
 st.write("このアプリではSUUMOから取得した物件情報を閲覧し、詳細リンクにアクセスできます。")
 
+# 物件一覧を更新するボタン
+if st.button("物件一覧を更新する"):
+    with st.spinner('物件一覧を更新中です...'):
+        for index, search_url in enumerate(SEARCH_URLS):
+            json_file_path = FILE_NAMES[index]
+            data = fetch_suumo_data(search_url)
+            save_to_json(data, json_file_path)
+        st.success("物件一覧が更新されました")
+
 # ファイルの選択
-files = [f for f in os.listdir() if f.endswith('.json')]
+files = [f for f in FILE_NAMES if os.path.exists(f)]
 selected_file = st.selectbox('確認するJSONファイルを選択してください:', files)
 
 # JSONファイルからデータを読み込む
@@ -119,33 +124,29 @@ if selected_file:
         # 必要な情報を表示
         st.dataframe(df[['名前', '価格', '所在地', '間取り', '専有面積', '築年数', 'フラグ', 'URL']])
 
-        # 各物件にアクセスするリンクとOpenStreetMapを表示
+        # 各物件にアクセスするリンクとGoogle Mapsリンクを表示
         for index, row in df.iterrows():
-            st.markdown(f"### 物件名: {row['名前']}")
+            # フラグに基づいて物件名に「☆」を追加
+            property_name = f"☆ {row['名前']}" if row['フラグ'] == '☆' else row['名前']
+
+            st.markdown(f"### 物件名: {property_name}")
             st.markdown(f"**価格**: {row['価格']}  **所在地**: {row['所在地']}  **間取り**: {row['間取り']}  **専有面積**: {row['専有面積']}  **築年数**: {row['築年数']}")
             st.markdown(f"[詳細を見る]({row['URL']})")
 
-            # 住所から緯度経度を取得
-            latitude, longitude = get_lat_lon(row['所在地'])
-
-            if latitude and longitude:
-                # Foliumマップを生成
-                folium_map = folium.Map(location=[latitude, longitude], zoom_start=15)
-                folium.Marker([latitude, longitude], popup=row['名前']).add_to(folium_map)
-
-                # Streamlit上にFoliumマップを表示
-                st_folium(folium_map, width=700, height=500)
-            else:
-                st.write("位置情報が見つかりませんでした。")
+            # Google Mapsで住所を開くリンクを追加
+            google_maps_url = f"https://www.google.com/maps/search/?api=1&query={row['所在地']}"
+            st.markdown(f"[Google Mapsで住所を表示する]({google_maps_url})")
 
             st.markdown("---")
     else:
         st.write("選択したファイルにはデータがありません。")
 
-# データを取得し保存する処理（任意で実行）
-if st.button("データを更新"):
+# 選択したデータを更新する処理
+if st.button("選択したデータを更新"):
+    json_file_path = selected_file
     for index, search_url in enumerate(SEARCH_URLS):
-        json_file_path = f'suumo_listings_{index+1}.json'
-        data = fetch_suumo_data(search_url)
-        save_to_json(data, json_file_path)
-        st.write(f"データが更新されました: {json_file_path}")
+        if FILE_NAMES[index] == selected_file:
+            with st.spinner('データを更新中です...'):
+                data = fetch_suumo_data(search_url)
+                save_to_json(data, json_file_path)
+            st.success("選択したデータが更新されました")
