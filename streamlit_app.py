@@ -26,6 +26,7 @@ FILE_NAMES = [
 ]
 
 
+
 # データ取得関数
 def fetch_suumo_data(search_url):
     listings = []
@@ -89,8 +90,13 @@ def save_to_json(new_data, file_path):
     new_df['フラグ'] = '-'
     if not old_df.empty:
         merged_df = pd.merge(new_df, old_df, how='left', on=['価格', '所在地', '間取り', '専有面積', '築年数'], indicator=True)
-        new_properties = merged_df[merged_df['_merge'] == 'left_only']
-        new_df.loc[new_df['URL'].isin(new_properties['URL']), 'フラグ'] = '☆'
+        
+        # URLカラムが存在するか確認
+        if 'URL' in merged_df.columns:
+            new_properties = merged_df[merged_df['_merge'] == 'left_only']
+            new_df.loc[new_df['URL'].isin(new_properties['URL']), 'フラグ'] = '☆'
+        else:
+            st.error("データのマージに失敗しました。URLカラムが見つかりませんでした。")
 
     # 削除された物件を特定し表示
     if not old_df.empty:
