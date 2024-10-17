@@ -25,6 +25,7 @@ FILE_NAMES = [
     '町田周辺.json'
 ]
 
+
 # データ取得関数
 def fetch_suumo_data(search_url):
     listings = []
@@ -69,37 +70,36 @@ def fetch_suumo_data(search_url):
     return listings
 
 # データをJSONに保存
-def save_to_json(data, file_path):
+def save_to_json(new_data, file_path):
+    # 既存のファイルからデータを読み込む
     if os.path.exists(file_path):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as file:
-                old_data = json.load(file)
-            old_df = pd.DataFrame(old_data)
-        except json.JSONDecodeError:
-            # ファイルが空または破損している場合は新規データフレームを作成
-            old_df = pd.DataFrame()
+        with open(file_path, 'r', encoding='utf-8') as file:
+            old_data = json.load(file)
+        old_df = pd.DataFrame(old_data)
     else:
-        # ファイルが存在しない場合は新規データフレームを作成
         old_df = pd.DataFrame()
-    
-    new_df = pd.DataFrame(data)
+
+    new_df = pd.DataFrame(new_data)
 
     # 名前に含まれる「☆」「-」を削除
-    if not old_df.empty and '名前' in old_df.columns:
+    if not old_df.empty:
         old_df['名前'] = old_df['名前'].str.replace('☆', '', regex=False).str.replace('-', '', regex=False)
 
-    # 削除された物件を特定
+    # 新しい物件には「☆」をつける
+    new_df['フラグ'] = '-'
+    if not old_df.empty:
+        merged_df = pd.merge(new_df, old_df, how='left', on=['価格', '所在地', '間取り', '専有面積', '築年数'], indicator=True)
+        new_properties = merged_df[merged_df['_merge'] == 'left_only']
+        new_df.loc[new_df['URL'].isin(new_properties['URL']), 'フラグ'] = '☆'
+
+    # 削除された物件を特定し表示
     if not old_df.empty:
         merged_df = pd.merge(old_df, new_df, how='outer', on=['価格', '所在地', '間取り', '専有面積', '築年数', 'URL'], indicator=True)
         removed_properties = merged_df[merged_df['_merge'] == 'left_only']
-        
-        # 削除された物件があるかどうかを確認し、カラムの存在もチェック
-        if not removed_properties.empty and all(col in removed_properties.columns for col in ['名前', '価格', '所在地', '間取り', '専有面積', '築年数', 'URL']):
-            st.write("削除された物件情報:")
+        if not removed_properties.empty:
+            st.write("削除された物件:")
             st.dataframe(removed_properties[['名前', '価格', '所在地', '間取り', '専有面積', '築年数', 'URL']])
-        else:
-            st.write("削除された物件はありません。")
-    
+
     # 新しいデータをファイルに保存
     final_df = pd.concat([old_df, new_df], ignore_index=True)
     final_df.drop_duplicates(subset=['価格', '所在地', '間取り', '専有面積', '築年数', 'URL'], keep='first', inplace=True)
