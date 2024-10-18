@@ -19,7 +19,6 @@ GITHUB_RAW_URL_TEMPLATE = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main
 
 # GitHubトークン（GitHub APIを使うために必要）
 GITHUB_TOKEN = st.secrets["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"]
-
 # GitHubからJSONを取得する関数
 def fetch_json_from_github(file_path):
     try:
@@ -43,7 +42,7 @@ def save_json_to_github(file_path, data):
     # 現在のファイルのSHAを取得する
     get_response = requests.get(api_url, headers=headers)
     if get_response.status_code == 200:
-        sha = get_response.json()["sha"]
+        sha = get_response.json().get("sha")
     else:
         sha = None  # 新規作成の場合はSHAが不要
 
