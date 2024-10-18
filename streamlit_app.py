@@ -18,7 +18,7 @@ GITHUB_API_URL_TEMPLATE = f"https://api.github.com/repos/{GITHUB_REPO}/contents/
 GITHUB_RAW_URL_TEMPLATE = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{{}}"
 
 # GitHubトークン（GitHub APIを使うために必要）
-GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+GITHUB_TOKEN = st.secrets["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"]
 
 # GitHubからJSONを取得する関数
 def fetch_json_from_github(file_path):
